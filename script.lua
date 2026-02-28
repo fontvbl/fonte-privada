@@ -3,45 +3,42 @@ local fontPath = "minecraft.ttf"
 local configPath = "minecraft.json"
 local fontURL = "https://raw.githubusercontent.com/karmamlk/Fonte-de-Minecraft-/main/Minecraft.ttf"
 
-local function loadFont()
-    if not isfile(fontPath) then
-        writefile(fontPath, game:HttpGet(fontURL))
-    end
-    
-    local fontConfig = svc:JSONEncode({
-        name = "Minecraft",
-        faces = {{name="Regular", weight=400, style="normal", assetId=getcustomasset(fontPath)}}
-    })
-    writefile(configPath, fontConfig)
-    return Font.new(getcustomasset(configPath))
+if not isfile(fontPath) then
+    writefile(fontPath, game:HttpGet(fontURL))
 end
 
-local customFont = loadFont()
-local defaultFont = tostring(Font.new("rbxasset://LuaPackages/Packages/_Index/BuilderIcons/BuilderIcons/BuilderIcons.json"))
+writefile(configPath, svc:JSONEncode({
+    name = "Minecraft",
+    faces = {{name="Regular", weight=400, style="normal", assetId=getcustomasset(fontPath)}}
+}))
 
-local function isProtected(element)
-    if element.TextStrokeTransparency ~= 1 then return true end
-    local fontStr = tostring(element.FontFace)
-    return fontStr == defaultFont or string.find(fontStr, "BuilderIcons") ~= nil
+local mcFont = Font.new(getcustomasset(configPath))
+local blockedFont = tostring(Font.new("rbxasset://LuaPackages/Packages/_Index/BuilderIcons/BuilderIcons/BuilderIcons.json"))
+
+local function shouldSkip(obj)
+    if obj.TextStrokeTransparency ~= 1 then return false end
+    local currentFont = tostring(obj.FontFace)
+    return currentFont == blockedFont or string.find(currentFont, "BuilderIcons")
 end
 
-local function applyFont(element)
-    if (element:IsA("TextLabel") or element:IsA("TextButton") or element:IsA("TextBox")) and not isProtected(element) then
-        element.FontFace = customFont
+local function updateFont(obj)
+    if (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then
+        if not shouldSkip(obj) then
+            obj.FontFace = mcFont
+        end
     end
 end
 
-local descendants = game:GetDescendants()
-for i = 1, #descendants do
-    task.spawn(function() 
-        applyFont(descendants[i]) 
+for _, element in pairs(game:GetDescendants()) do
+    spawn(function() 
+        updateFont(element) 
     end)
 end
 
-game.DescendantAdded:Connect(function(newObj)
-    task.spawn(function() 
-        applyFont(newObj) 
+game.DescendantAdded:Connect(function(newElement)
+    spawn(function() 
+        updateFont(newElement) 
     end)
 end)
 
-print("✓ Minecraft Font Applied!")
+print("✓ Minecraft Font Loaded!")
